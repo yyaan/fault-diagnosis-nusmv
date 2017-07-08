@@ -1,0 +1,219 @@
+MODULE fsa(can_move)
+
+VAR
+	taken_tansition: {visible, unvisible, fault, recovery};
+	current_state: 0..56;
+	simulated_next_state : 0..56;
+	transition: {a,c,b,f,r,u};
+	transition_type : {visible, unvisible, fault, recovery}; -- used to classify the current transition
+	implicit_transition_taken : boolean;
+	has_not_moved : boolean;
+INIT
+	current_state = 0 & taken_tansition = visible;
+
+ASSIGN
+
+	simulated_next_state :=
+	case
+		current_state = 0 & transition = a : {1};
+		current_state = 0 & transition = b : {2};
+		current_state = 1 & transition = b : {3};
+		current_state = 2 & transition = b : {4};
+		current_state = 3 & transition = u : {5,6,7};
+		current_state = 4 & transition = u : {9,10};
+		current_state = 4 & transition = f : {8};
+		current_state = 5 & transition = c : {13};
+		current_state = 5 & transition = u : {11,12};
+		current_state = 6 & transition = c : {15};
+		current_state = 6 & transition = u : {11,14};
+		current_state = 7 & transition = c : {16};
+		current_state = 7 & transition = u : {12,14};
+		current_state = 8 & transition = c : {19};
+		current_state = 8 & transition = u : {17,18};
+		current_state = 9 & transition = c : {21};
+		current_state = 9 & transition = u : {20};
+		current_state = 9 & transition = f : {17};
+		current_state = 10 & transition = c : {22};
+		current_state = 10 & transition = u : {20};
+		current_state = 10 & transition = f : {18};
+		current_state = 11 & transition = c : {24,25};
+		current_state = 11 & transition = u : {23};
+		current_state = 12 & transition = c : {26,27};
+		current_state = 12 & transition = u : {23};
+		current_state = 13 & transition = u : {24,26};
+		current_state = 14 & transition = c : {28,29};
+		current_state = 14 & transition = u : {23};
+		current_state = 15 & transition = u : {25,28};
+		current_state = 16 & transition = u : {27,29};
+		current_state = 17 & transition = c : {31,32};
+		current_state = 17 & transition = u : {30};
+		current_state = 18 & transition = c : {33,34};
+		current_state = 18 & transition = u : {30};
+		current_state = 19 & transition = u : {31,33};
+		current_state = 20 & transition = c : {35,36};
+		current_state = 20 & transition = f : {30};
+		current_state = 21 & transition = u : {35};
+		current_state = 21 & transition = f : {32};
+		current_state = 22 & transition = u : {36};
+		current_state = 22 & transition = f : {34};
+		current_state = 23 & transition = c : {37,38,39};
+		current_state = 24 & transition = c : {40};
+		current_state = 24 & transition = u : {37};
+		current_state = 25 & transition = c : {40};
+		current_state = 25 & transition = u : {38};
+		current_state = 26 & transition = c : {41};
+		current_state = 26 & transition = u : {37};
+		current_state = 27 & transition = c : {41};
+		current_state = 27 & transition = u : {39};
+		current_state = 28 & transition = c : {42};
+		current_state = 28 & transition = u : {38};
+		current_state = 29 & transition = c : {42};
+		current_state = 29 & transition = u : {39};
+		current_state = 30 & transition = c : {43,44,45};
+		current_state = 31 & transition = c : {46};
+		current_state = 31 & transition = u : {43};
+		current_state = 32 & transition = c : {46};
+		current_state = 32 & transition = u : {44};
+		current_state = 33 & transition = c : {47};
+		current_state = 33 & transition = u : {43};
+		current_state = 34 & transition = c : {47};
+		current_state = 34 & transition = u : {45};
+		current_state = 35 & transition = c : {48};
+		current_state = 35 & transition = f : {44};
+		current_state = 36 & transition = c : {48};
+		current_state = 36 & transition = f : {45};
+		current_state = 37 & transition = c : {49,50};
+		current_state = 38 & transition = c : {49,51};
+		current_state = 39 & transition = c : {50,51};
+		current_state = 40 & transition = u : {49};
+		current_state = 41 & transition = u : {50};
+		current_state = 42 & transition = u : {51};
+		current_state = 43 & transition = c : {52,53};
+		current_state = 44 & transition = c : {52,54};
+		current_state = 45 & transition = c : {53,54};
+		current_state = 46 & transition = u : {52};
+		current_state = 47 & transition = u : {53};
+		current_state = 48 & transition = f : {54};
+		current_state = 49 & transition = c : {55};
+		current_state = 50 & transition = c : {55};
+		current_state = 51 & transition = c : {55};
+		current_state = 52 & transition = c : {56};
+		current_state = 53 & transition = c : {56};
+		current_state = 54 & transition = c : {56};
+		current_state = 55 & transition = u : {1};
+		current_state = 56 & transition = r : {2};
+TRUE : current_state;
+	esac;
+    next(has_not_moved) := current_state = next(current_state);
+	next(current_state) :=
+	case can_move : simulated_next_state;
+	TRUE : current_state;
+	esac;
+
+	next(taken_tansition) :=
+	case can_move : transition_type;
+	TRUE : taken_tansition;
+	esac;
+
+	implicit_transition_taken := simulated_next_state = current_state;
+
+	transition_type :=
+	case
+		implicit_transition_taken : taken_tansition;
+	    transition = a | transition = b | transition = c : visible;
+	    transition = u : unvisible;
+	    transition = f : fault;
+	    transition = r : recovery;
+		TRUE : taken_tansition;
+	esac;
+
+-- END MODULE
+
+
+------------------------------------------------------------------------
+-- LABELLING FSA
+------------------------------------------------------------------------
+MODULE label_fsa(transition)
+    -- values of interest for transition are "fault" and "recovery"
+VAR
+    current_state : {NORMAL, FAULT, RECOVERY};
+
+INIT
+    current_state = NORMAL;
+ 
+ASSIGN
+    next(current_state):=
+    case
+        current_state = NORMAL & transition = fault : FAULT;
+        current_state = FAULT & transition = recovery : RECOVERY;
+        current_state = RECOVERY & transition = fault : FAULT;
+        TRUE : current_state;
+    esac;
+
+-- END MODULE
+
+------------------------------------------------------------------------
+-- LABELED FSA
+------------------------------------------------------------------------
+MODULE labeled_fsa(can_move)
+
+VAR
+    myFsa : fsa(can_move);
+    labelFSA : label_fsa(myFsa.transition_type);
+
+-- END MODULE
+
+------------------------------------------------------------------------
+-- PROJECTION FSA
+------------------------------------------------------------------------
+MODULE projection(can_move_fsa)
+
+VAR
+	lab : labeled_fsa(can_move_fsa);
+	label : {NORMAL, FAULT, RECOVERY};
+	previous_label : {NORMAL, FAULT, RECOVERY};
+	in_transition : boolean;
+
+INIT
+	label = NORMAL & previous_label = NORMAL;
+
+ASSIGN
+	next(previous_label) := label;
+
+	label := 
+	case
+		lab.myFsa.taken_tansition = visible : lab.labelFSA.current_state;
+		TRUE : previous_label;
+	esac;
+
+	in_transition := lab.myFsa.transition_type != visible ;
+
+------------------------------------------------------------------------
+-- TWIN PLANT
+------------------------------------------------------------------------
+MODULE main
+VAR 
+	can_move_fsa1 : boolean;
+	can_move_fsa2 : boolean;
+	ltl_check : boolean;
+	p1 : projection(can_move_fsa1);
+	p2 : projection(can_move_fsa2);
+
+ASSIGN
+	ltl_check := ! p1.lab.myFsa.implicit_transition_taken & ! p2.lab.myFsa.implicit_transition_taken;
+	can_move_fsa1 :=
+	case
+		p1.lab.myFsa.transition = p2.lab.myFsa.transition  & ! p1.lab.myFsa.implicit_transition_taken & ! p2.lab.myFsa.implicit_transition_taken : TRUE;
+		p1.in_transition : TRUE;
+		TRUE : FALSE;
+	esac;
+
+		can_move_fsa2 :=
+	case
+		p1.lab.myFsa.transition = p2.lab.myFsa.transition  & ! p1.lab.myFsa.implicit_transition_taken & ! p2.lab.myFsa.implicit_transition_taken: TRUE;
+		p2.in_transition : TRUE;
+		TRUE : FALSE;
+	esac;
+LTLSPEC ! F G (ltl_check & p1.label = NORMAL & F(p2.label = FAULT));
+--LTLSPEC G (p1.lab.myFsa.transition_type = fault -> ( G (ltl_check & !p1.lab.myFsa.has_not_moved) -> F (p1.lab.myFsa.transition_type = visible & F(p1.lab.myFsa.transition_type = recovery))));
+--LTLSPEC G (p1.lab.myFsa.transition_type = fault -> ( G (ltl_check & !p1.lab.myFsa.has_not_moved) -> X ((p1.lab.myFsa.transition_type = visible ) & X(p1.lab.myFsa.transition_type = recovery))));

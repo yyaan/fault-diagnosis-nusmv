@@ -1,0 +1,156 @@
+
+------------------------------------------------------------------------
+-- LABELLING FSA
+------------------------------------------------------------------------
+MODULE label_fsa(transition)
+    -- values of interest for transition are "fault" and "recovery"
+VAR
+    current_state : {NORMAL, FAULT, RECOVERY};
+
+INIT
+    current_state = NORMAL;
+ 
+ASSIGN
+    next(current_state):=
+    case
+        current_state = NORMAL & transition = fault : FAULT;
+        current_state = FAULT & transition = recovery : RECOVERY;
+        current_state = RECOVERY & transition = fault : FAULT;
+        TRUE : current_state;
+    esac;
+
+-- END MODULE
+
+-------------------------------------------------------------------------
+-- SYSTEM FSA
+-------------------------------------------------------------------------
+MODULE fsa(can_move)
+
+
+VAR 
+	taken_tansition: {visible, unvisible, fault, recovery};
+	current_state: 1..8;
+	simulated_next_state : 1..8;
+	transition: {a, b, c, d, u, f, r};
+	transition_type : {visible, unvisible, fault, recovery}; -- used to classify the current transition
+	implicit_transition_taken : boolean;
+	has_not_moved : boolean;
+INIT
+	current_state = 1 & taken_tansition = visible;
+
+ASSIGN
+
+	simulated_next_state:=
+	case
+		current_state = 1 & transition= a : 3;
+		current_state = 1 & transition= u : 2;
+		current_state = 2 & transition= a : 4;
+		current_state = 4 & transition= b : 6;
+		current_state = 6 & transition= c : 4;
+
+		current_state = 3 & transition= f : 5;
+		current_state = 5 & transition= b : 7;
+		current_state = 7 & transition= r : 8;
+		current_state = 8 & transition= c : 3;
+		TRUE : current_state;
+	esac;
+	next(has_not_moved) := next(current_state) = current_state;
+	next(current_state) :=
+	case can_move : simulated_next_state;
+	TRUE : current_state;
+	esac;
+
+	next(taken_tansition) :=
+	case can_move : transition_type;
+	TRUE : taken_tansition;
+	esac;
+	
+	implicit_transition_taken := simulated_next_state = current_state;
+
+	transition_type :=
+	case
+		implicit_transition_taken : taken_tansition; 
+	    transition = a | transition = b | transition = c : visible;
+	    transition = u : unvisible;
+	    transition = f : fault;
+	    transition = r : recovery;
+		TRUE : taken_tansition;
+	esac;
+
+-- END MODULE
+
+------------------------------------------------------------------------
+-- LABELED FSA
+------------------------------------------------------------------------
+MODULE labeled_fsa(can_move)
+
+VAR
+    myFsa : fsa(can_move);
+    labelFSA : label_fsa(myFsa.transition_type);
+
+-- END MODULE
+
+------------------------------------------------------------------------
+-- PROJECTION FSA
+------------------------------------------------------------------------
+MODULE projection(can_move_fsa)
+
+VAR
+	lab : labeled_fsa(can_move_fsa);
+	state : 1..8;
+	previous_state : 1..8;
+	label : {NORMAL, FAULT, RECOVERY};
+	previous_label : {NORMAL, FAULT, RECOVERY};
+	in_transition : boolean;
+
+INIT
+	state = 1 & label = NORMAL & previous_state = 1 & previous_label = NORMAL;
+
+ASSIGN
+	next(previous_state) := state;
+	next(previous_label) := label;
+
+	state :=
+	case
+		lab.myFsa.taken_tansition = visible : lab.myFsa.current_state;
+		TRUE : previous_state;
+	esac;
+
+	label := 
+	case
+		lab.myFsa.taken_tansition = visible : lab.labelFSA.current_state;
+		TRUE : previous_label;
+	esac;
+
+	in_transition := lab.myFsa.transition_type != visible ;
+
+------------------------------------------------------------------------
+-- TWIN PLANT
+------------------------------------------------------------------------
+MODULE main
+VAR 
+	can_move_fsa1 : boolean;
+	can_move_fsa2 : boolean;
+	ltl_check : boolean;
+	p1 : projection(can_move_fsa1);
+	p2 : projection(can_move_fsa2);
+
+ASSIGN
+	ltl_check := ! p1.lab.myFsa.implicit_transition_taken & ! p2.lab.myFsa.implicit_transition_taken;
+	can_move_fsa1 :=
+	case
+		p1.lab.myFsa.transition = p2.lab.myFsa.transition & ! p1.lab.myFsa.implicit_transition_taken & ! p2.lab.myFsa.implicit_transition_taken: TRUE;
+		p1.in_transition : TRUE;
+		TRUE : FALSE;
+	esac;
+
+		can_move_fsa2 :=
+	case
+		p1.lab.myFsa.transition = p2.lab.myFsa.transition & ! p1.lab.myFsa.implicit_transition_taken & ! p2.lab.myFsa.implicit_transition_taken: TRUE;
+		p2.in_transition : TRUE;
+		TRUE : FALSE;
+	esac;
+
+--LTLSPEC ! F G (ltl_check & p1.label = NORMAL & F(p2.label = FAULT));
+--LTLSPEC G (p1.lab.myFsa.transition_type = fault -> ( G (ltl_check & !p1.lab.myFsa.has_not_moved) -> F (p1.lab.myFsa.transition_type = visible & F(p1.lab.myFsa.transition_type = recovery))));
+--LTLSPEC G (p1.lab.myFsa.transition_type = fault -> ( G (ltl_check & !p1.lab.myFsa.has_not_moved) -> X ((p1.lab.myFsa.transition_type = visible ) & X(p1.lab.myFsa.transition_type = recovery))));

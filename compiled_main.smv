@@ -1,0 +1,8 @@
+MODULE main
+
+VAR
+p : fsa(transition);
+transition: {a, b, c, u, f, r};
+
+ASSIGN
+LTLSPEC ! F G (!p.implicit_transition_taken & p.state1_label = NORMAL & F(p.state2_label = FAULT));
